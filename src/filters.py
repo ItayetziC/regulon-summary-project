@@ -1,3 +1,5 @@
+from core import get_regulator_type
+
 def filter_by_type(regulon, regulator_type):
     """
     Filtra reguladores por tipo.

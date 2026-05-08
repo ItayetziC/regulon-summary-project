@@ -1,8 +1,8 @@
 import os
 import argparse
 
-from filters import filter_by_min_genes, filter_by_type, get_regulator_type
-
+from filters import filter_by_min_genes, filter_by_type
+from core import build_regulon, get_regulator_type
 # =========================================
 # Responsabilidad: Leer el archivo de interacciones y construir una estructura de datos que contenga la información relevante para cada TF.
 # Entrada: Archivo TSV con interacciones entre reguladores y genes.
