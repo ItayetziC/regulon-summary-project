@@ -1,5 +1,4 @@
-def main():
-    print("Hello from regulon-summary-project!")
+from src.regulon_summary import main
 
 
 if __name__ == "__main__":

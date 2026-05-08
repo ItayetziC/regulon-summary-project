@@ -24,7 +24,6 @@ def load_interactions(filename):
 
     with open(filename) as f:
         for line in f:
-
             line = line.strip()
 
             # Ignorar líneas vacías
@@ -59,9 +58,9 @@ def load_interactions(filename):
 
 
 # =========================================
-# Responsabilidad: Construir una estructura de datos que resuma la información de cada TF, incluyendo el número total de genes regulados únicos, genes activados únicos, genes reprimidos únicos y la lista de genes regulados.
+# Responsabilidad: Construir una estructura de datos que resuma la información de cada TF.
 # Entrada: lista de interacciones (TF, gen, efecto).
-# Salida: diccionario con clave TF y valores
+# Salida: diccionario con clave TF y valores que contienen genes únicos y conteos de activación/represión.
 # =========================================
 def build_regulon(interactions):
     """Construye una estructura de datos que resume la información de cada TF.
@@ -70,21 +69,18 @@ def build_regulon(interactions):
         interactions (list[tuple[str, str, str]]): Lista de interacciones (TF, gen, efecto).
 
     Returns:
-        dict: Diccionario con clave TF y valores que contienen conjuntos de genes únicos,
-            genes activados únicos y genes reprimidos únicos.
+        dict: Diccionario con clave TF y valores que contienen la lista de genes regulados,
+            y los conteos de activados y reprimidos.
     """
     regulon = {}
 
     for TF, gene, effect in interactions:
-
-        # Inicializar estructura si el TF no existe
         if TF not in regulon:
             regulon[TF] = {"genes": [], "activados": 0, "reprimidos": 0}
 
-        # Agregar gen a los conjuntos para evitar duplicados
-        regulon[TF]["genes"].append(gene)
+        if gene not in regulon[TF]["genes"]:
+            regulon[TF]["genes"].append(gene)
 
-        # Contar tipo de regulación
         if effect == "+":
             regulon[TF]["activados"] += 1
         elif effect == "-":
@@ -96,22 +92,89 @@ def build_regulon(interactions):
     return regulon
 
 
-# =========================================
-# Responsabilidad: Generar un archivo de salida que resuma la información de cada TF, incluyendo el número total de genes regulados únicos, el número de genes activados únicos, el número de genes reprimidos únicos, el tipo de regulación (activador, represor o dual) y la lista de genes regulados.
-# Entrada: diccionario con clave TF y valores
-# Salida: archivo TSV con resumen de reguladores
-# =========================================
+def filter_by_min_genes(regulon, min_genes):
+    """
+    Filtra un regulón por número mínimo de genes regulados.
+
+    Responsabilidad:
+        Conservar únicamente los TFs que regulan al menos `min_genes` genes.
+
+    Entrada:
+        regulon (dict): Diccionario con la información de cada TF.
+        min_genes (int): Número mínimo de genes regulados requerido.
+
+    Salida:
+        dict: Nuevo diccionario con los TFs que cumplen el criterio.
+    """
+    filtered = {}
+
+    for TF, data in regulon.items():
+        if len(data["genes"]) >= min_genes:
+            filtered[TF] = data
+
+    return filtered
+
+
+def get_regulator_type(data):
+    """
+    Determina el tipo de regulador.
+
+    Responsabilidad:
+        Clasificar un TF como activador, represor o dual según sus conteos
+        de genes activados y reprimidos.
+
+    Entrada:
+        data (dict): Diccionario con las claves `activados` y `reprimidos`.
+
+    Salida:
+        str: Tipo de regulación: `activador`, `represor` o `dual`.
+    """
+    activados = data["activados"]
+    reprimidos = data["reprimidos"]
+
+    if activados > 0 and reprimidos > 0:
+        return "dual"
+    elif activados > 0:
+        return "activador"
+    else:
+        return "represor"
+
+
+def filter_by_type(regulon, regulator_type):
+    """
+    Filtra reguladores por tipo.
+
+    Responsabilidad:
+        Conservar únicamente los TFs cuyo tipo de regulación coincide con
+        el valor solicitado.
+
+    Entrada:
+        regulon (dict): Diccionario con la información de cada TF.
+        regulator_type (str | None): Tipo solicitado: `activador`,
+            `represor`, `dual` o None.
+
+    Salida:
+        dict: Nuevo diccionario con los TFs que cumplen el criterio.
+    """
+    if regulator_type is None:
+        return regulon
+
+    filtered = {}
+    for TF, data in regulon.items():
+        current_type = get_regulator_type(data)
+        if current_type == regulator_type:
+            filtered[TF] = data
+
+    return filtered
+
+
 def write_summary(regulon, output_file):
     """Escribe el resumen del regulon a un archivo TSV.
 
     Args:
         regulon (dict): Diccionario con información del regulon.
         output_file (str): Ruta del archivo de salida.
-
-    Notes:
-        Calcula los totales de activados y reprimidos a partir de conjuntos de genes únicos.
     """
-
     if not output_file:
         raise ValueError("output_file vacío")
 
@@ -119,7 +182,6 @@ def write_summary(regulon, output_file):
         raise ValueError("regulon no puede ser None")
 
     dirpath = os.path.dirname(output_file)
-
     if dirpath:
         os.makedirs(dirpath, exist_ok=True)
 
@@ -127,43 +189,57 @@ def write_summary(regulon, output_file):
         out.write("TF\tTotal genes\tActivados\tReprimidos\tTipo\tLista de genes\n")
 
         for TF in sorted(regulon):
-
-            # Obtener datos
             genes = sorted(regulon[TF]["genes"])
             total = len(genes)
             activados = regulon[TF]["activados"]
             reprimidos = regulon[TF]["reprimidos"]
-
-            # Determinar tipo de regulación
-            if activados > 0 and reprimidos > 0:
-                tipo = "dual"
-            elif activados > 0:
-                tipo = "activador"
-            else:
-                tipo = "represor"
-
+            tipo = get_regulator_type(regulon[TF])
             lista_genes = ", ".join(genes)
             out.write(
                 f"{TF}\t{total}\t{activados}\t{reprimidos}\t{tipo}\t{lista_genes}\n"
             )
 
 
-# =========================================
-# Lectura de argumentos
-# =========================================
+def write_sif(interactions, output_file):
+    """Escribe las interacciones en formato SIF.
+
+    Responsabilidad:
+        Convertir las interacciones regulador-gen al formato SIF compatible
+        con herramientas de visualización de redes como Cytoscape.
+
+    Entrada:
+        interactions (list[tuple[str, str, str]]): Lista de interacciones
+            en forma (TF, gen, efecto).
+        output_file (str): Ruta del archivo de salida.
+    """
+    if not output_file:
+        raise ValueError("output_file vacío")
+
+    dirpath = os.path.dirname(output_file)
+    if dirpath:
+        os.makedirs(dirpath, exist_ok=True)
+
+    with open(output_file, "w") as out:
+        for TF, gene, effect in interactions:
+            if effect == "+":
+                interaction = "activates"
+            elif effect == "-":
+                interaction = "represses"
+            else:
+                interaction = "regulates"
+
+            out.write(f"{TF}\t{interaction}\t{gene}\n")
+
+
 def parse_arguments():
     """Define y lee los argumentos de línea de comandos."""
-
     parser = argparse.ArgumentParser(
         description="Genera un resumen de regulones a partir de un archivo TSV"
     )
 
-    # Argumentos obligatorios (posicionales)
     parser.add_argument("input_file", help="Archivo de entrada con interacciones")
-
     parser.add_argument("output_file", help="Archivo de salida para el resumen")
 
-    # Argumento opcional
     parser.add_argument(
         "--min_genes",
         type=int,
@@ -171,93 +247,77 @@ def parse_arguments():
         help="Filtrar TFs con al menos este número de genes",
     )
 
+    parser.add_argument(
+        "--type",
+        choices=["activador", "represor", "dual"],
+        help="Filtrar TFs por tipo de regulación",
+    )
+
+    parser.add_argument(
+        "--format",
+        choices=["summary", "sif"],
+        default="summary",
+        help="Formato de salida: summary o sif",
+    )
+
     return parser.parse_args()
 
 
-# =========================================
-# Main
-# =========================================
+def filter_interactions_by_regulon(interactions, regulon):
+    """Devuelve solo las interacciones cuyos TF aparecen en el regulon filtrado."""
+    return [interaction for interaction in interactions if interaction[0] in regulon]
+
+
 def main():
     """Función principal del programa."""
 
-    # =========================================
-    # 1. Lectura de argumentos
-    # =========================================
     args = parse_arguments()
-
     input_file = args.input_file
     output_file = args.output_file
     min_genes = args.min_genes
+    regulator_type = args.type
+    output_format = args.format
 
-    # =========================================
-    # 2. Validación de argumentos (errores predecibles)
-    # =========================================
     if min_genes < 0:
         print("Error: min_genes debe ser mayor o igual a 0.")
         exit(1)
 
-    # =========================================
-    # 3. Lectura de datos (puede fallar → try/except)
-    # =========================================
     try:
         interactions = load_interactions(input_file)
-
     except FileNotFoundError:
         print(f"Error: no existe el archivo de entrada -> {input_file}")
         exit(1)
-
     except PermissionError:
         print(f"Error: no hay permisos para leer el archivo -> {input_file}")
         exit(1)
-
     except OSError as e:
         print(f"Error al leer el archivo ({input_file}): {e}")
         exit(1)
 
-    # =========================================
-    # 4. Validación de contenido (no error crítico)
-    # =========================================
     if not interactions:
         print("Advertencia: no se encontraron interacciones válidas.")
 
-    # =========================================
-    # 5. Construcción del regulon
-    # =========================================
     regulon = build_regulon(interactions)
+    regulon = filter_by_min_genes(regulon, min_genes)
+    regulon = filter_by_type(regulon, regulator_type)
 
-    # =========================================
-    # 6. Filtrado por número de genes
-    # =========================================
-    nuevo_regulon = {}
-
-    for TF, data in regulon.items():
-        num_genes = len(data["genes"])
-
-        if num_genes >= min_genes:
-            nuevo_regulon[TF] = data
-
-    regulon = nuevo_regulon
-
-    # =========================================
-    # 7. Resultado vacío (caso válido)
-    # =========================================
     if not regulon:
         print("Advertencia: no hay reguladores que cumplan el filtro.")
 
-    # =========================================
-    # 8. Escritura de resultados (puede fallar)
-    # =========================================
     try:
-        write_summary(regulon, output_file)
-
+        if output_format == "summary":
+            write_summary(regulon, output_file)
+        else:
+            filtered_interactions = filter_interactions_by_regulon(
+                interactions, regulon
+            )
+            write_sif(filtered_interactions, output_file)
     except PermissionError:
         print(f"Error: no hay permisos para escribir -> {output_file}")
         exit(1)
-
     except IsADirectoryError:
         print(f"Error: la ruta de salida es un directorio -> {output_file}")
         exit(1)
-
     except OSError as e:
         print(f"Error al escribir el archivo ({output_file}): {e}")
         exit(1)
