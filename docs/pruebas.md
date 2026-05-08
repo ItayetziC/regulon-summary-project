@@ -2,6 +2,7 @@
 
 Este documento describe los casos de prueba simples y los casos límite que el programa ya comprueba.
 
+
 ## Casos simples
 
 ### Caso 1: Comportamiento actual

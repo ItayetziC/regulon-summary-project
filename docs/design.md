@@ -1,4 +1,4 @@
-# Diseño del proyecto Regulon Summary
+# Proyecto Regulon Summary
 
 ## Objetivo
 
