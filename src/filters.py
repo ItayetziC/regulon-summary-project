@@ -1,27 +1,3 @@
-def get_regulator_type(data):
-    """
-    Determina el tipo de regulador.
-
-    Responsabilidad:
-        Clasificar un TF como activador, represor o dual según sus conteos
-        de genes activados y reprimidos.
-
-    Entrada:
-        data (dict): Diccionario con las claves `activados` y `reprimidos`.
-
-    Salida:
-        str: Tipo de regulación: `activador`, `represor` o `dual`.
-    """
-    activados = data["activados"]
-    reprimidos = data["reprimidos"]
-
-    if activados > 0 and reprimidos > 0:
-        return "dual"
-    elif activados > 0:
-        return "activador"
-    else:
-        return "represor"
-
 def filter_by_type(regulon, regulator_type):
     """
     Filtra reguladores por tipo.
