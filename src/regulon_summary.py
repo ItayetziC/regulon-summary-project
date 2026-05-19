@@ -1,10 +1,10 @@
 import os
 
-from filters import filter_by_min_genes, filter_by_type
-from core import build_regulon
-from exporters import write_summary, write_sif
-from io_utils import load_interactions
-from cli import parse_arguments
+from .filters import filter_by_min_genes, filter_by_type
+from .core import build_regulon
+from .exporters import write_summary, write_sif
+from .io_utils import load_interactions
+from .cli import parse_arguments
 
 def build_regulon(interactions):
     """Construye una estructura de datos que resume la información de cada TF.
