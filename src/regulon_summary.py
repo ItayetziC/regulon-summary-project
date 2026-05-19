@@ -1,6 +1,6 @@
 import os
 
-from .filters import filter_by_min_genes, filter_by_type
+from .filters import filter_by_min_genes, filter_by_type, filter_interactions_by_regulon
 from .core import build_regulon
 from .exporters import write_summary, write_sif
 from .io_utils import load_interactions
@@ -75,9 +75,7 @@ def main():
         if output_format == "summary":
             write_summary(regulon, output_file)
         else:
-            filtered_interactions = filter_interactions_by_regulon(
-                interactions, regulon
-            )
+            filtered_interactions = filter_interactions_by_regulon(interactions, regulon)            
             write_sif(filtered_interactions, output_file)
     except PermissionError:
         print(f"Error: no hay permisos para escribir -> {output_file}")
