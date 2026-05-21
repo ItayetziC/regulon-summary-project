@@ -8,16 +8,14 @@ def test_load_interactions_ignores_invalid_lines(tmp_path):
     input_file = tmp_path / "interactions.tsv"
 
     input_file.write_text(
-        "# comentario"
-        "1)regulatorId	regulatorName	X	X	geneName	effect	X"
-        "id1	CRP	X	X	lacZ	+	X"
-        "id2	FNR	X	X	narG	-	X"
-        "id3	BAD	X	X	geneX	?	X"
+        "# comentario\n"
+        "regulatorId\tregulatorName\tX\tX\tgeneName\teffect\tX\n"
+        "id1\tCRP\tX\tX\tlacZ\t+\tX\n"
+        "linea_invalida\n"
+        "id2\tFNR\tX\tX\tnarG\t-\tX\n",
+        encoding="utf-8",
     )
 
     interactions = load_interactions(input_file)
 
-    assert interactions == [
-        ("CRP", "lacZ", "+"),
-        ("FNR", "narG", "-"),
-    ]
+    assert interactions == [("CRP", "lacZ", "+"),("FNR", "narG", "-"),]

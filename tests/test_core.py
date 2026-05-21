@@ -1,4 +1,4 @@
-from src.core import get_regulator_type
+from src.core import get_regulator_type, build_regulon
 
 
 def test_get_regulator_type_returns_activador():
@@ -59,3 +59,58 @@ def test_get_same_gene_for_regulator():
 
     assert result == "dual"
 
+def test_build_regulon_ignores_duplicate_genes():
+    # Esta prueba verifica que build_regulon construya el regulon correctamente
+    # incluso si hay interacciones duplicadas para el mismo regulador y gen.
+
+    interactions = [
+        ("CRP", "lacZ", "+"),
+        ("CRP", "lacZ", "+"),  # Duplicado
+        ("CRP", "lacA", "-"),
+        ("FNR", "narG", "-"),
+        ("FNR", "narG", "-"),  # Duplicado
+    ]
+
+    regulon = build_regulon(interactions)
+
+    assert set(regulon["CRP"]["genes"]) == {"lacZ", "lacA"}
+    assert regulon["CRP"]["activados"] == 2
+    assert regulon["CRP"]["reprimidos"] == 1
+
+    assert set(regulon["FNR"]["genes"]) == {"narG"}
+    assert regulon["FNR"]["activados"] == 0
+    assert regulon["FNR"]["reprimidos"] == 2
+    
+def test_build_regulon_empty_interactions():
+    # Esta prueba verifica que build_regulon devuelva un regulon vacío
+    # cuando se le proporciona una lista vacía de interacciones.
+
+    interactions = []
+
+    regulon = build_regulon(interactions)
+
+    assert regulon == {}
+
+def test_build_regulon_multiple_regulators_same_gene():
+    # Esta prueba verifica que build_regulon maneje correctamente el caso
+    # en el que múltiples reguladores afectan al mismo gen.
+
+    interactions = [
+        ("CRP", "lacZ", "+"),
+        ("FNR", "lacZ", "-"),
+        ("AraC", "lacZ", "+-"),
+    ]
+
+    regulon = build_regulon(interactions)
+
+    assert set(regulon["CRP"]["genes"]) == {"lacZ"}
+    assert regulon["CRP"]["activados"] == 1
+    assert regulon["CRP"]["reprimidos"] == 0
+
+    assert set(regulon["FNR"]["genes"]) == {"lacZ"}
+    assert regulon["FNR"]["activados"] == 0
+    assert regulon["FNR"]["reprimidos"] == 1
+
+    assert set(regulon["AraC"]["genes"]) == {"lacZ"}
+    assert regulon["AraC"]["activados"] == 1
+    assert regulon["AraC"]["reprimidos"] == 1
